@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import { readFileSync, existsSync } from "node:fs";
-import { join, extname } from "node:path";
+import { join, extname, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
 // Inline .env loader — .env.local overrides .env
 function loadEnv() {
@@ -22,7 +23,7 @@ const env = loadEnv();
 const HOST = env.ERGOPAD_HOST ?? "localhost";
 const PORT = parseInt(env.ERGOPAD_PORT ?? "3000", 10);
 const PREFIX = "/ergopad";
-const DOCS_DIR = join(import.meta.dirname, "docs");
+const DOCS_DIR = join(dirname(fileURLToPath(import.meta.url)), "docs");
 
 const MIME = {
   ".html": "text/html",

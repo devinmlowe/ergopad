@@ -105,6 +105,124 @@ const ergogenMatrixColumns: { ergopad: Column; ergogen: string }[] = [
 
 const round1 = (n: number): number => Math.round(n * 10) / 10;
 
+export type KeyPlacement = {
+  ref: string;
+  column: string;
+  row: string;
+  x_mm: number;
+  y_mm: number;
+  rotation_deg: number;
+};
+
+/**
+ * Column-to-ref mapping: fixed SW ref slots per column (3 rows each).
+ * Refs are not dense — null columns are skipped but numbering is preserved.
+ */
+const columnRefSlots: { column: Column; label: string; startRef: number }[] = [
+  { column: 'pinky', label: 'pinky', startRef: 1 },
+  { column: 'ring', label: 'ring', startRef: 4 },
+  { column: 'middle', label: 'middle', startRef: 7 },
+  { column: 'index', label: 'index', startRef: 10 },
+  { column: 'index_far', label: 'inner', startRef: 13 },
+  { column: 'thumb', label: 'thumb', startRef: 16 },
+];
+
+const rows: { name: string; offset: number }[] = [
+  { name: 'bottom', offset: 1 },
+  { name: 'home', offset: 0 },
+  { name: 'top', offset: -1 },
+];
+
+/**
+ * Expand per-column geometry into individual key placements (3 rows per column).
+ * Row spacing is 17mm along the column's trendline direction.
+ * Columns with null geometry are skipped; ref numbering uses fixed slots.
+ */
+export const expandToKeys = (
+  geometry: Record<Column, ColumnGeometry | null>,
+): KeyPlacement[] => {
+  const keys: KeyPlacement[] = [];
+
+  for (const { column, label, startRef } of columnRefSlots) {
+    const col = geometry[column];
+    if (col === null) continue;
+
+    const rRad = col.rotation_deg * (Math.PI / 180);
+
+    for (let i = 0; i < rows.length; i++) {
+      const { name, offset } = rows[i];
+      keys.push({
+        ref: `SW${startRef + i}`,
+        column: label,
+        row: name,
+        x_mm: round1(col.x_mm + offset * 17 * Math.sin(rRad)),
+        y_mm: round1(col.y_mm + offset * 17 * Math.cos(rRad)),
+        rotation_deg: col.rotation_deg,
+      });
+    }
+  }
+
+  return keys;
+};
+
+/**
+ * Generate a KiCad Python placement script from column geometry.
+ * Calls expandToKeys() internally, then formats as a Python script
+ * for KiCad's scripting console (Tools > Scripting Console).
+ */
+export const toKiCadScript = (
+  geometry: Record<Column, ColumnGeometry | null>,
+): string => {
+  const keys = expandToKeys(geometry);
+  const lines: string[] = [];
+
+  // Header
+  lines.push('# Ergopad KiCad Placement Script');
+  lines.push('# Generated from hand geometry capture');
+  lines.push('# Paste into KiCad: Tools > Scripting Console');
+  lines.push('#');
+  lines.push('# Coordinate system: mm, Y-down (matches KiCad)');
+  lines.push('# Origin: middle finger home row');
+  lines.push('# Adjust ox, oy to position on your board');
+  lines.push('import pcbnew');
+  lines.push('');
+  lines.push('board = pcbnew.GetBoard()');
+  lines.push('');
+  lines.push('# Board origin offset — adjust to your PCB layout');
+  lines.push('ox, oy = 100.0, 100.0');
+  lines.push('');
+  lines.push('placements = {');
+
+  for (const key of keys) {
+    const x = key.x_mm.toFixed(1);
+    const y = key.y_mm.toFixed(1);
+    const rot = key.rotation_deg.toFixed(1);
+    // Pad SW1-SW9 refs with extra space after colon so columns align
+    const refStr = `"${key.ref}"`;
+    const pad = key.ref.length < 4 ? '  ' : ' ';
+    lines.push(
+      `    ${refStr}:${pad}(ox + ${x}, oy + ${y}, ${rot}),  # ${key.column} ${key.row}`,
+    );
+  }
+
+  lines.push('}');
+  lines.push('');
+
+  // Footer
+  lines.push('for ref, (x, y, rot) in placements.items():');
+  lines.push('    fp = board.FindFootprintByReference(ref)');
+  lines.push('    if fp:');
+  lines.push('        fp.SetPosition(pcbnew.VECTOR2I(');
+  lines.push('            pcbnew.FromMM(x), pcbnew.FromMM(y)');
+  lines.push('        ))');
+  lines.push('        fp.SetOrientationDegrees(rot)');
+  lines.push('');
+  lines.push('pcbnew.Refresh()');
+  lines.push('');
+
+  return lines.join('\n');
+};
+
 /**
  * Generate an Ergogen-compatible YAML snippet from column geometry.
  * Computes stagger (y offset), spread (x offset), and splay (rotation delta)

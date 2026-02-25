@@ -40,7 +40,7 @@ import { SaveIcon } from '@heroicons/react/solid';
 import toast, { Toaster } from 'react-hot-toast';
 import { copy } from './copy';
 import { Column, columns } from './columns';
-import { computeColumnGeometry, toErgogenYAML } from './ergogen';
+import { computeColumnGeometry, toErgogenYAML, toKiCadScript } from './ergogen';
 import type { ColumnGeometry } from './ergogen';
 
 const defaultColumn = 'middle' as Column;
@@ -331,10 +331,14 @@ const PxPerMMControl = ({
 const Export = ({
   onRawExport,
   onErgogenExport,
+  onErgogenDownload,
+  onKiCadDownload,
   state,
 }: {
   onRawExport: () => void;
   onErgogenExport: () => void;
+  onErgogenDownload: () => void;
+  onKiCadDownload: () => void;
   state: PopupState;
 }) => {
   // https://github.com/estevanmaito/windmill-react-ui/issues/34
@@ -357,7 +361,13 @@ const Export = ({
         key={key + 'dropdown'}
       >
         <DropdownItem onClick={onErgogenExport}>
-          <span>Ergogen YAML</span>
+          <span>Copy Ergogen YAML</span>
+        </DropdownItem>
+        <DropdownItem onClick={onErgogenDownload}>
+          <span>Download Ergogen YAML</span>
+        </DropdownItem>
+        <DropdownItem onClick={onKiCadDownload}>
+          <span>Download KiCad Script</span>
         </DropdownItem>
         <DropdownItem onClick={onRawExport}>
           <span>Raw</span>
@@ -462,6 +472,30 @@ export const App = ({ storedPpm }: { storedPpm: O.Option<number> }) => {
       });
   }, [geometry, exportState.close]);
 
+  const onErgogenDownload = useCallback(() => {
+    const yaml = toErgogenYAML(geometry);
+    const blob = new Blob([yaml], { type: 'text/yaml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'ergogen.yaml';
+    a.click();
+    URL.revokeObjectURL(url);
+    exportState.close();
+  }, [geometry, exportState.close]);
+
+  const onKiCadDownload = useCallback(() => {
+    const script = toKiCadScript(geometry);
+    const blob = new Blob([script], { type: 'text/x-python' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'ergopad-placement.py';
+    a.click();
+    URL.revokeObjectURL(url);
+    exportState.close();
+  }, [geometry, exportState.close]);
+
   useEffect(() => {
     function f(this: HTMLDivElement, evt: PointerEvent) {
       evt.preventDefault();
@@ -524,6 +558,8 @@ export const App = ({ storedPpm }: { storedPpm: O.Option<number> }) => {
           <Export
             onRawExport={onRawExport}
             onErgogenExport={onErgogenExport}
+            onErgogenDownload={onErgogenDownload}
+            onKiCadDownload={onKiCadDownload}
             state={exportState}
           />
         </div>
