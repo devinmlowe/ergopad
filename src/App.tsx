@@ -39,19 +39,9 @@ import {
 import { SaveIcon } from '@heroicons/react/solid';
 import toast, { Toaster } from 'react-hot-toast';
 import { copy } from './copy';
-
-type Column = 'pinky' | 'ring' | 'middle' | 'index' | 'index_far' | 'thumb';
+import { Column, columns } from './columns';
 
 const defaultColumn = 'middle' as Column;
-
-const columns: Column[] = [
-  'thumb',
-  'index_far',
-  'index',
-  'middle',
-  'ring',
-  'pinky',
-];
 
 const columnToColor = (c: Column): string => {
   switch (c) {
