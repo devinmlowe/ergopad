@@ -371,6 +371,53 @@ const Export = ({
   );
 };
 
+const GeometryPanel = ({
+  geometry,
+}: {
+  geometry: Record<Column, ColumnGeometry | null>;
+}) => {
+  const displayColumns: { name: string; key: Column }[] = [
+    { name: 'pinky', key: 'pinky' },
+    { name: 'ring', key: 'ring' },
+    { name: 'middle', key: 'middle' },
+    { name: 'index', key: 'index' },
+    { name: 'inner', key: 'index_far' },
+    { name: 'thumb', key: 'thumb' },
+  ];
+
+  const fmt = (n: number) => n.toFixed(1);
+
+  return (
+    <div className="overflow-x-auto text-xs font-mono pr-4">
+      <table className="w-full">
+        <thead>
+          <tr className="text-left opacity-60">
+            <th className="pr-4 pb-1">Column</th>
+            <th className="pr-4 pb-1 text-right">X (mm)</th>
+            <th className="pr-4 pb-1 text-right">Y (mm)</th>
+            <th className="pb-1 text-right">Rotation</th>
+          </tr>
+        </thead>
+        <tbody>
+          {displayColumns.map(({ name, key }) => {
+            const g = geometry[key];
+            return (
+              <tr key={key}>
+                <td className="pr-4">{name}</td>
+                <td className="pr-4 text-right">{g ? fmt(g.x_mm) : '--'}</td>
+                <td className="pr-4 text-right">{g ? fmt(g.y_mm) : '--'}</td>
+                <td className="text-right">
+                  {g ? `${fmt(g.rotation_deg)}°` : '--'}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
 export const App = ({ storedPpm }: { storedPpm: O.Option<number> }) => {
   const [column, setColumn] = useState(defaultColumn);
   const [positions, setPositions] = useState(defaultPositions);
@@ -467,6 +514,7 @@ export const App = ({ storedPpm }: { storedPpm: O.Option<number> }) => {
           </Label>
           <Export onRawExport={onRawExport} state={exportState} />
         </div>
+        <GeometryPanel geometry={geometry} />
       </div>
       <div className="touchytouchy" ref={ref}>
         <Boo
