@@ -1,4 +1,10 @@
-export type Column = 'pinky' | 'ring' | 'middle' | 'index' | 'index_far' | 'thumb';
+export type Column =
+  | 'pinky'
+  | 'ring'
+  | 'middle'
+  | 'index'
+  | 'index_far'
+  | 'thumb';
 
 export const columns: Column[] = [
   'thumb',
