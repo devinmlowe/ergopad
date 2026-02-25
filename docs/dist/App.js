@@ -32,15 +32,9 @@ import {
 import {SaveIcon} from "../_snowpack/pkg/@heroicons/react/solid.js";
 import toast, {Toaster} from "../_snowpack/pkg/react-hot-toast.js";
 import {copy} from "./copy.js";
+import {columns} from "./columns.js";
+import {computeColumnGeometry, toErgogenYAML, toKiCadScript} from "./ergogen.js";
 const defaultColumn = "middle";
-const columns = [
-  "thumb",
-  "index_far",
-  "index",
-  "middle",
-  "ring",
-  "pinky"
-];
 const columnToColor = (c) => {
   switch (c) {
     case "thumb":
@@ -205,6 +199,9 @@ const PxPerMMControl = ({
 };
 const Export = ({
   onRawExport,
+  onErgogenExport,
+  onErgogenDownload,
+  onKiCadDownload,
   state
 }) => {
   const key = String(state.isOpen);
@@ -221,8 +218,55 @@ const Export = ({
     onClose: state.close,
     key: key + "dropdown"
   }, /* @__PURE__ */ React.createElement(DropdownItem, {
+    onClick: onErgogenExport
+  }, /* @__PURE__ */ React.createElement("span", null, "Copy Ergogen YAML")), /* @__PURE__ */ React.createElement(DropdownItem, {
+    onClick: onErgogenDownload
+  }, /* @__PURE__ */ React.createElement("span", null, "Download Ergogen YAML")), /* @__PURE__ */ React.createElement(DropdownItem, {
+    onClick: onKiCadDownload
+  }, /* @__PURE__ */ React.createElement("span", null, "Download KiCad Script")), /* @__PURE__ */ React.createElement(DropdownItem, {
     onClick: onRawExport
   }, /* @__PURE__ */ React.createElement("span", null, "Raw"))));
+};
+const GeometryPanel = ({
+  geometry
+}) => {
+  const displayColumns = [
+    {name: "pinky", key: "pinky"},
+    {name: "ring", key: "ring"},
+    {name: "middle", key: "middle"},
+    {name: "index", key: "index"},
+    {name: "inner", key: "index_far"},
+    {name: "thumb", key: "thumb"}
+  ];
+  const fmt = (n) => n.toFixed(1);
+  return /* @__PURE__ */ React.createElement("div", {
+    className: "overflow-x-auto text-xs font-mono pr-4"
+  }, /* @__PURE__ */ React.createElement("table", {
+    className: "w-full"
+  }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", {
+    className: "text-left opacity-60"
+  }, /* @__PURE__ */ React.createElement("th", {
+    className: "pr-4 pb-1"
+  }, "Column"), /* @__PURE__ */ React.createElement("th", {
+    className: "pr-4 pb-1 text-right"
+  }, "X (mm)"), /* @__PURE__ */ React.createElement("th", {
+    className: "pr-4 pb-1 text-right"
+  }, "Y (mm)"), /* @__PURE__ */ React.createElement("th", {
+    className: "pb-1 text-right"
+  }, "Rotation"))), /* @__PURE__ */ React.createElement("tbody", null, displayColumns.map(({name, key}) => {
+    const g = geometry[key];
+    return /* @__PURE__ */ React.createElement("tr", {
+      key
+    }, /* @__PURE__ */ React.createElement("td", {
+      className: "pr-4"
+    }, name), /* @__PURE__ */ React.createElement("td", {
+      className: "pr-4 text-right"
+    }, g ? fmt(g.x_mm) : "--"), /* @__PURE__ */ React.createElement("td", {
+      className: "pr-4 text-right"
+    }, g ? fmt(g.y_mm) : "--"), /* @__PURE__ */ React.createElement("td", {
+      className: "text-right"
+    }, g ? `${fmt(g.rotation_deg)}°` : "--"));
+  }))));
 };
 export const App = ({storedPpm}) => {
   const [column, setColumn] = useState(defaultColumn);
@@ -231,6 +275,7 @@ export const App = ({storedPpm}) => {
   const ref = useRef(null);
   const defaultPpm = pipe(storedPpm, O.getOrElse(() => DEFAULT_PX_PER_MM_VALUE));
   const [ppm, setPpm] = useState(defaultPpm);
+  const geometry = computeColumnGeometry(positions, ppm);
   const onPpmChange = useCallback((newPpm) => {
     setPrimitive(PIX_PER_MM_LOCALSTORAGE_KEY, newPpm)();
     setPpm(newPpm);
@@ -245,6 +290,37 @@ export const App = ({storedPpm}) => {
       exportState.close();
     });
   }, [positions, exportState.close]);
+  const onErgogenExport = useCallback(() => {
+    copy(toErgogenYAML(geometry)).then(() => {
+      toast.success("Ergogen YAML copied to clipboard");
+    }).catch(() => {
+      toast.error("Something went wrong");
+    }).finally(() => {
+      exportState.close();
+    });
+  }, [geometry, exportState.close]);
+  const onErgogenDownload = useCallback(() => {
+    const yaml = toErgogenYAML(geometry);
+    const blob = new Blob([yaml], {type: "text/yaml"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "ergogen.yaml";
+    a.click();
+    URL.revokeObjectURL(url);
+    exportState.close();
+  }, [geometry, exportState.close]);
+  const onKiCadDownload = useCallback(() => {
+    const script = toKiCadScript(geometry);
+    const blob = new Blob([script], {type: "text/x-python"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "ergopad-placement.py";
+    a.click();
+    URL.revokeObjectURL(url);
+    exportState.close();
+  }, [geometry, exportState.close]);
   useEffect(() => {
     function f(evt) {
       evt.preventDefault();
@@ -298,8 +374,13 @@ export const App = ({storedPpm}) => {
     className: "ml-2"
   }, "Aux lines"))), /* @__PURE__ */ React.createElement(Export, {
     onRawExport,
+    onErgogenExport,
+    onErgogenDownload,
+    onKiCadDownload,
     state: exportState
-  }))), /* @__PURE__ */ React.createElement("div", {
+  })), /* @__PURE__ */ React.createElement(GeometryPanel, {
+    geometry
+  })), /* @__PURE__ */ React.createElement("div", {
     className: "touchytouchy",
     ref
   }, /* @__PURE__ */ React.createElement(Boo, {
