@@ -40,6 +40,8 @@ import { SaveIcon } from '@heroicons/react/solid';
 import toast, { Toaster } from 'react-hot-toast';
 import { copy } from './copy';
 import { Column, columns } from './columns';
+import { computeColumnGeometry } from './ergogen';
+import type { ColumnGeometry } from './ergogen';
 
 const defaultColumn = 'middle' as Column;
 
@@ -379,6 +381,8 @@ export const App = ({ storedPpm }: { storedPpm: O.Option<number> }) => {
     O.getOrElse(() => DEFAULT_PX_PER_MM_VALUE),
   );
   const [ppm, setPpm] = useState(defaultPpm);
+
+  const geometry = computeColumnGeometry(positions, ppm);
 
   const onPpmChange = useCallback(
     (newPpm: number) => {
