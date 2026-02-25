@@ -90,3 +90,93 @@ export const computeColumnGeometry = (
   }
   return result;
 };
+
+/**
+ * Ergogen column order (left to right on keyboard).
+ * Maps ergopad column names to Ergogen zone names.
+ */
+const ergogenMatrixColumns: { ergopad: Column; ergogen: string }[] = [
+  { ergopad: 'pinky', ergogen: 'pinky' },
+  { ergopad: 'ring', ergogen: 'ring' },
+  { ergopad: 'middle', ergogen: 'middle' },
+  { ergopad: 'index', ergogen: 'index' },
+  { ergopad: 'index_far', ergogen: 'inner' },
+];
+
+const round1 = (n: number): number => Math.round(n * 10) / 10;
+
+/**
+ * Generate an Ergogen-compatible YAML snippet from column geometry.
+ * Computes stagger (y offset), spread (x offset), and splay (rotation delta)
+ * between adjacent columns.
+ */
+export const toErgogenYAML = (
+  geometry: Record<Column, ColumnGeometry | null>,
+): string => {
+  const lines: string[] = [];
+  lines.push('units:');
+  lines.push('  kx: 17');
+  lines.push('  ky: 17');
+  lines.push('');
+  lines.push('points:');
+  lines.push('  zones:');
+  lines.push('    matrix:');
+  lines.push('      columns:');
+
+  let prevCol: ColumnGeometry | null = null;
+
+  for (const { ergopad, ergogen } of ergogenMatrixColumns) {
+    const col = geometry[ergopad];
+    if (col === null) {
+      prevCol = null;
+      continue;
+    }
+
+    lines.push(`        ${ergogen}:`);
+    lines.push(`          key:`);
+
+    if (prevCol !== null) {
+      const stagger = round1(col.y_mm - prevCol.y_mm);
+      const spread = round1(col.x_mm - prevCol.x_mm);
+      const splay = round1(col.rotation_deg - prevCol.rotation_deg);
+      lines.push(`            stagger: ${stagger}`);
+      lines.push(`            spread: ${spread}`);
+      lines.push(`            splay: ${splay}`);
+    } else {
+      // First column — absolute stagger from origin, no spread
+      lines.push(`            stagger: ${round1(col.y_mm)}`);
+      if (col.rotation_deg !== 0) {
+        lines.push(`            splay: ${round1(col.rotation_deg)}`);
+      }
+    }
+
+    prevCol = col;
+  }
+
+  // Thumb zone
+  const thumb = geometry.thumb;
+  if (thumb !== null) {
+    lines.push('');
+    lines.push('    thumb:');
+    lines.push('      anchor:');
+    lines.push('        ref: matrix_inner_bottom');
+    // Thumb shift is relative to inner column (index_far)
+    const inner = geometry.index_far;
+    if (inner !== null) {
+      const shiftX = round1(thumb.x_mm - inner.x_mm);
+      const shiftY = round1(thumb.y_mm - inner.y_mm);
+      lines.push(`        shift: [${shiftX}, ${shiftY}]`);
+    } else {
+      lines.push(
+        `        shift: [${round1(thumb.x_mm)}, ${round1(thumb.y_mm)}]`,
+      );
+    }
+    lines.push('      columns:');
+    lines.push('        thumb:');
+    lines.push('          key:');
+    lines.push(`            splay: ${round1(thumb.rotation_deg)}`);
+  }
+
+  lines.push('');
+  return lines.join('\n');
+};

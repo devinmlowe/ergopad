@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 import type { Point2D } from './geometry';
 import type { Column } from './columns';
-import { computeColumnGeometry } from './ergogen';
+import { computeColumnGeometry, toErgogenYAML } from './ergogen';
 import type { ColumnGeometry } from './ergogen';
 
 // Helper: create positions record with only specified columns populated
@@ -77,5 +77,56 @@ describe('computeColumnGeometry', () => {
     const result = computeColumnGeometry(positions, 5);
     // Without middle to normalize against, all should be null
     expect(result.ring).to.equal(null);
+  });
+});
+
+describe('toErgogenYAML', () => {
+  it('produces valid YAML with stagger/spread/splay for populated columns', () => {
+    const geometry: Record<Column, ColumnGeometry | null> = {
+      pinky: { x_mm: -34.0, y_mm: -6.0, rotation_deg: 5.0 },
+      ring: { x_mm: -17.0, y_mm: 2.0, rotation_deg: 2.0 },
+      middle: { x_mm: 0.0, y_mm: 0.0, rotation_deg: 0.0 },
+      index: { x_mm: 17.0, y_mm: -3.0, rotation_deg: -1.0 },
+      index_far: { x_mm: 34.0, y_mm: -6.0, rotation_deg: -2.0 },
+      thumb: { x_mm: 22.0, y_mm: -28.0, rotation_deg: 18.0 },
+    };
+    const yaml = toErgogenYAML(geometry);
+    // Should contain units
+    expect(yaml).to.include('kx: 17');
+    expect(yaml).to.include('ky: 17');
+    // Should contain matrix zone columns
+    expect(yaml).to.include('pinky:');
+    expect(yaml).to.include('ring:');
+    expect(yaml).to.include('middle:');
+    expect(yaml).to.include('index:');
+    expect(yaml).to.include('inner:');
+    // Should contain thumb zone
+    expect(yaml).to.include('thumb:');
+    // Should contain stagger/splay values
+    expect(yaml).to.include('stagger:');
+    expect(yaml).to.include('splay:');
+    // Verify computed delta values (ring relative to pinky):
+    // stagger = 2.0 - (-6.0) = 8, spread = -17.0 - (-34.0) = 17, splay = 2.0 - 5.0 = -3
+    expect(yaml).to.include('stagger: 8');
+    expect(yaml).to.include('spread: 17');
+    expect(yaml).to.include('splay: -3');
+  });
+
+  it('skips columns with null geometry', () => {
+    const geometry: Record<Column, ColumnGeometry | null> = {
+      pinky: null,
+      ring: null,
+      middle: { x_mm: 0, y_mm: 0, rotation_deg: 0 },
+      index: { x_mm: 17, y_mm: -3, rotation_deg: -1 },
+      index_far: null,
+      thumb: null,
+    };
+    const yaml = toErgogenYAML(geometry);
+    // Should still produce valid YAML with available columns
+    expect(yaml).to.include('middle:');
+    expect(yaml).to.include('index:');
+    // Should not include columns with no data
+    expect(yaml).to.not.include('pinky:');
+    expect(yaml).to.not.include('inner:');
   });
 });
