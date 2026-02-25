@@ -63,6 +63,14 @@ Make Ergopad run locally and output Ergogen-compatible data.
 - Side-by-side comparison of multiple hand captures
 - Import existing Ergogen configs for overlay/comparison
 
+## Documentation
+
+| Document | Contents |
+|----------|----------|
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Component tree, data flow, build pipeline, module dependencies, styling, FP patterns |
+| [INTERFACES.md](INTERFACES.md) | All type definitions, function signatures, fp-ts patterns, module exports |
+| [OBJECTS.md](OBJECTS.md) | Runtime objects, state shapes, Two.js instances, configuration, file inventory |
+
 ## Architecture Notes
 
 ### Key Files
