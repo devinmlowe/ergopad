@@ -40,7 +40,7 @@ import { SaveIcon } from '@heroicons/react/solid';
 import toast, { Toaster } from 'react-hot-toast';
 import { copy } from './copy';
 import { Column, columns } from './columns';
-import { computeColumnGeometry } from './ergogen';
+import { computeColumnGeometry, toErgogenYAML } from './ergogen';
 import type { ColumnGeometry } from './ergogen';
 
 const defaultColumn = 'middle' as Column;
@@ -330,9 +330,11 @@ const PxPerMMControl = ({
 
 const Export = ({
   onRawExport,
+  onErgogenExport,
   state,
 }: {
   onRawExport: () => void;
+  onErgogenExport: () => void;
   state: PopupState;
 }) => {
   // https://github.com/estevanmaito/windmill-react-ui/issues/34
@@ -354,15 +356,9 @@ const Export = ({
         onClose={state.close}
         key={key + 'dropdown'}
       >
-        {/* <DropdownItem
-          // tag="a"
-          // href="#"
-          className="justify-between"
-          disabled
-        >
-          <span>Ergogen</span>
-          <Badge type="danger">not available</Badge>
-        </DropdownItem> */}
+        <DropdownItem onClick={onErgogenExport}>
+          <span>Ergogen YAML</span>
+        </DropdownItem>
         <DropdownItem onClick={onRawExport}>
           <span>Raw</span>
         </DropdownItem>
@@ -453,6 +449,19 @@ export const App = ({ storedPpm }: { storedPpm: O.Option<number> }) => {
       });
   }, [positions, exportState.close]);
 
+  const onErgogenExport = useCallback(() => {
+    copy(toErgogenYAML(geometry))
+      .then(() => {
+        toast.success('Ergogen YAML copied to clipboard');
+      })
+      .catch(() => {
+        toast.error('Something went wrong');
+      })
+      .finally(() => {
+        exportState.close();
+      });
+  }, [geometry, exportState.close]);
+
   useEffect(() => {
     function f(this: HTMLDivElement, evt: PointerEvent) {
       evt.preventDefault();
@@ -512,7 +521,11 @@ export const App = ({ storedPpm }: { storedPpm: O.Option<number> }) => {
               <span className="ml-2">Aux lines</span>
             </Button>
           </Label>
-          <Export onRawExport={onRawExport} state={exportState} />
+          <Export
+            onRawExport={onRawExport}
+            onErgogenExport={onErgogenExport}
+            state={exportState}
+          />
         </div>
         <GeometryPanel geometry={geometry} />
       </div>
